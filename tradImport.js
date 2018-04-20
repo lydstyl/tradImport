@@ -1,51 +1,73 @@
-const fs = require('fs')
-var parse = require('csv-parse')
+const fs = require('fs');
+var parse = require('csv-parse');
 
+function keyStr2Arr(keyStr) {
+    keyStr = keyStr.split('/');
+    let keyArr = [];
+    for (let i = 2; i < keyStr.length; i++) {
+        // to do : check if there is a '/' or more in the attribute
+        keyArr.push(keyStr[i]);
+    }
+    return keyArr;
+}
+function keyArrToObjrecur(xPathArr, value, index, obj) {
+    let newObj = {};
+    if (!obj) { // first time the function is launched
+        obj = {};
+        index = xPathArr.length - 1;
+        newObj[xPathArr[index]] = value;
+    }else{
+        newObj[xPathArr[index]] = obj;
+    }
+    if (!index) return newObj; // breaking the recursivity
+    xPathArr.pop();
+    obj = keyArrToObjrecur(xPathArr, value, index - 1, newObj);
+    return obj;
+}
 
 // csv-parse
 fs.readFile('./test1.csv', function (err, fileData) {
     parse(fileData, {columns: true, trim: true}, function(err, rows) {
         // Your CSV data is in an array of arrys passed to this callback as rows.
-        //console.log();
-        
         var obj = makeObj(err, rows);
         makeXml(obj);
     })
 })
 function makeObj(err, rows) {
-
+    let keyValObjs = []
     for (let i = 0; i < rows.length; i++) {
         const element = rows[i];
         let xPath = element.xPath;
-        let value = element['TO TRANSLATE'];
-        console.log('row');
-        console.log(xPath);
-        console.log(value);
-        
+        let value = element['TO TRANSLATE']; // values column name
+        let keyArr = keyStr2Arr(xPath);
+        let keyObj = keyArrToObjrecur(keyArr, value);
+        //console.log('row');
+        //console.log(JSON.stringify(keyObj));
+        keyValObjs.push(keyObj);
     }
 
-    var obj = {};
-    /*for (let i = 0; i < rows.length; i++) {
-        console.log(rows[i].xPath);
-    }*/
-    console.log(rows[0].xPath);
-    console.log(rows[0].xPath);
-    console.log(rows[1].xPath);
-
-    rows = rows[0];
+    console.log(JSON.stringify(keyValObjs));
+    // transform keyValObjs to the adequat result obj here
     
-    console.log(typeof rows);
-    console.log(typeof 'rows');
-    
-    console.log('ro/ws'.split('/'));
-    
-
-    console.log(obj);
-    
-    obj = {
-        "firstName": "John",
-        "lastName": "Smith",
-        "dateOfBirth": new Date(1964, 7, 26),
+    let result = {
+        "tagUnique": "tagUniqueVal",
+        "multipleTagA": [
+            {
+                '#': 'multipleTagAVal1',
+            },
+            {
+                "@": {
+                    "attributeX": "attributeXVal",
+                    "attributeY": "attributeYVal"
+                },
+                '#': 'multipleTagAVal2'
+            }
+        ],
+        "tagUniqueInArray": [
+            {
+                '#': 'tagUniqueInArrayVal',
+            }
+        ],
         "address": {
             "@": {
                 "type": "home"
@@ -78,11 +100,11 @@ function makeObj(err, rows) {
         ],
         "email": "john@smith.com"
     };
-    return obj;
+    return result;
 }
 
 function makeXml(obj) {
     // https://www.npmjs.com/package/js2xmlparser
     var js2xmlparser = require("js2xmlparser");
-    //console.log(js2xmlparser.parse("library", obj));
+    console.log(js2xmlparser.parse("library", obj));
 }

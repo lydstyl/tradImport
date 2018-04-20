@@ -1,10 +1,3 @@
-
-
-
-// let keyStr = '//library/folder[attribute::folder-id="blog"]/display-name[attribute::xml:lang="en-AE"]';
-let keyStr = '//library/folder/tag2/tag3';
-let value = 'je suis la value';
-
 function keyStr2Arr(keyStr) {
     keyStr = keyStr.split('/');
     let keyArr = [];
@@ -14,26 +7,7 @@ function keyStr2Arr(keyStr) {
     }
     return keyArr;
 }
-function keyArr2Obj(keyArr) {
-    let obj = {};
-    for (let i = 0; i < keyArr.length; i++) {
-        const element = keyArr[i];
-        let tag = '';
-        console.log(element);
-        if (element.indexOf('attribute::') < 0) {
-            console.log('no attr');
-            tag = element;
-        }else{
-            console.log('attr');
-        }
-        obj[tag] = 'ddd';
-    }
-    return obj;
-}
-
-
-
-function recur(xPathArr, value, index, obj) {
+function keyArrToObjrecur(xPathArr, value, index, obj) {
     let newObj = {};
     if (!obj) { // first time the function is launched
         obj = {};
@@ -44,13 +18,14 @@ function recur(xPathArr, value, index, obj) {
     }
     if (!index) return newObj; // breaking the recursivity
     xPathArr.pop();
-    obj = recur(xPathArr, value, index - 1, newObj);
+    obj = keyArrToObjrecur(xPathArr, value, index - 1, newObj);
     return obj;
 }
 
-
-
+let keyStr = '//library/folder/tag2/tag3';
+let value = 'je suis la value';
 
 let keyArr = keyStr2Arr(keyStr);
-let keyObj = recur(keyArr, value);
+let keyObj = keyArrToObjrecur(keyArr, value);
+
 console.log(JSON.stringify(keyObj));
