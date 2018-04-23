@@ -11,6 +11,9 @@ function keyStr2Arr(keyStr) {
     return keyArr;
 }
 function keyArrToObjrecur(xPathArr, value, index, obj) {
+
+
+
     let newObj = {};
     if (!obj) { // first time the function is launched
         obj = {};
@@ -22,22 +25,32 @@ function keyArrToObjrecur(xPathArr, value, index, obj) {
     if (!index) return newObj; // breaking the recursivity
     xPathArr.pop();
     obj = keyArrToObjrecur(xPathArr, value, index - 1, newObj);
+
+
+
     return obj;
 }
 function makeObjStep1(rows) {
     /* return an array of objects like  
     {"library":{"folder[attribute::folder-id=\"blog\"]":{"display-name[attribute::xml:lang=\"en-AE\"]":"BLOG"}}} */
     //console.log('makeObjStep1');
-    let keyValObjs = []
+
+    let obj = {};
+
     for (let i = 0; i < rows.length; i++) {
         const element = rows[i];
         let xPath = element.xPath;
-        let value = element['TO TRANSLATE']; // values column name
+        let value = element[valuesColumn]; // values column name
         let keyArr = keyStr2Arr(xPath);
         let keyObj = keyArrToObjrecur(keyArr, value);
-        keyValObjs.push(keyObj);
+        
+        //console.log(JSON.stringify(keyObj));
+        
+        
+        //keyValObjs.push(keyObj);
     }
-    return keyValObjs;
+
+    return obj;
 }
 function makeObjStep2(keyValObjs) {
     console.log('makeObjStep2');
@@ -47,68 +60,119 @@ function makeObjStep2(keyValObjs) {
 function makeObjStep3(obj) {
     /* transform obj to the result obj for obj2xml compatibility */
     console.log('makeObjStep3');
-    /*let result = {
-        "tagUnique": "tagUniqueVal",
-        "multipleTagA": [
+    let result = {
+        "folder": [
             {
-                '#': 'multipleTagAVal1',
+                "@": {
+                    "folder-id": "blog",
+                    "attribut2": "valeur",
+                },
+                'display-name': {
+                    "@": {
+                        "xml:lang": "en-AE",
+                    },
+                    "tag3": {
+                        "@": {"coco" : "jojo"},
+                        "#": "BLOG"
+                    }
+                }
             },
             {
                 "@": {
-                    "attributeX": "attributeXVal",
-                    "attributeY": "attributeYVal"
+                    "folder-id": "Advices-for-men",
                 },
-                '#': 'multipleTagAVal2'
+                '#': 'folder'
             }
-        ],
-        "tagUniqueInArray": [
-            {
-                '#': 'tagUniqueInArrayVal',
-            }
-        ],
-        "address": {
-            "@": {
-                "type": "home"
-            },
-            "streetAddress": "3212 22nd St",
-            "city": "Chicago",
-            "state": "Illinois",
-            "zip": 10000
-        },
-        "phone": [
-            {
-                "@": {
-                    "type": "home",
-                    "truc": "autre"
-                },
-                "#": "123-555-4567"
-            },
-            {
-                "@": {
-                    "type": "cell"
-                },
-                "#": "890-555-1234"
-            },
-            {
-                "@": {
-                    "type": "work"
-                },
-                "#": "567-555-8901"
-            }
-        ],
-        "email": "john@smith.com"
+        ]
     };
-    return result;*/
+    return result;
 }
 function makeXml(obj) {
     // https://www.npmjs.com/package/js2xmlparser
     var js2xmlparser = require("js2xmlparser");
-    console.log(js2xmlparser.parse("library", obj));
+    console.log(js2xmlparser.parse(firstXmlTag, obj));
+}
+
+///////////////////////
+
+
+function attributsObj(lastTagAndAttrs) {
+    /*
+        lastTagAndAttrs can be  tagName[attribute::xml:lang=""en-AE""][attribute::xml:lang2=""fr-FR""]
+
+        this function return an @ object like this one :
+        {
+            "folder-id": "blog",
+            "attribut2": "valeur",
+        }
+    */
+    let attrs = {};
+    lastTagAndAttrs = lastTagAndAttrs.split('[attribute::').slice(1);
+     // [ 'tagName', 'xml:lang=""en-AE""]', 'xml:lang2=""fr-FR""]' ]
+    lastTagAndAttrs.forEach(function(attribut){
+        const attr = attribut.split('=')[0];
+        const value = attribut.split('"')[1];
+        if(attr) attrs[attr] = value;
+    });
+    return attrs;
+}
+
+function createTag(listTag, row, firstTime){
+    let objRes = {};
+    let tagName;
+    let nextTag;
+    if(listTag.length === 1){ // break
+        tagName = listTag[0].split('[')[0];
+        //const attr1 = listTag('[')[0];
+        objRes[tagName] = {
+            //'@' : {},
+            '@' : attributsObj(listTag[0]),
+            '#' : row[valuesColumn]
+        };
+    } 
+    else {
+        tagName = listTag[0].split('[')[0];
+        nextTag = listTag[1].split('[')[0];
+        console.log('tagName --> ' + tagName);
+        console.log('nextTag --> ' + nextTag);
+        
+        objRes[tagName] = {
+            '@' : attributsObj(listTag[0]),
+        };
+        if(firstTime) {
+            objRes[tagName][nextTag] = createTag(listTag.slice(1), row);
+        }
+        else{
+            objRes[tagName] = createTag(listTag.slice(1), row);
+            objRes[tagName]['@'] = attributsObj(listTag[0]);
+        }
+        firstTime = false;
+        /*objRes[tagName]["@"] = attributsObj(listTag[0]);
+        console.log(objRes[tagName]["@"]);
+        objRes[tagName] = createTag(listTag.slice(1), row);*/
+    }
+    return objRes; 
+}
+
+
+
+
+
+
+function makeOneRowObject(obj, row){
+    const key = row.xPath.split('/');
+    const val = row[valuesColumn];
+
+    if(key[2] == firstXmlTag){ // si library par ex
+        createTag(key.slice(3));
+    }
 }
 
 
 ///////////////////////////////////// App params
 let csvPath = './test1.csv';
+let valuesColumn = 'TO TRANSLATE';
+let firstXmlTag = 'library';
 /////////////////////////////////////
 
 fs.readFile(csvPath, function (err, fileData) { // csv-parse
@@ -118,10 +182,27 @@ fs.readFile(csvPath, function (err, fileData) { // csv-parse
             console.log('err: ', err);
         }
 
-        var obj = makeObjStep1(rows);
-        obj = makeObjStep2(obj);
-        obj = makeObjStep3(obj);
 
-        makeXml(obj);
+        //console.log(rows);
+        const row = rows[0];
+        const listTag = row.xPath.split('/').slice(3);
+        const res = createTag(listTag, row, true);
+        console.log(JSON.stringify(res));
+
+
+        /*let obj = makeObjStep1(rows);
+
+        obj = makeObjStep2(obj); 
+
+
+        makeXml(obj);*/
     })
 })
+
+
+/*
+const row = {
+
+}
+const listTag = "folder[attribute::folder-id=""blog""]/display-name[attribute::xml:lang=""en-AE""]/tag3[attribute::coco=""jojo""]";
+const test = createTag(listTag, row);*/
