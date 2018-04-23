@@ -24,16 +24,10 @@ function keyArrToObjrecur(xPathArr, value, index, obj) {
     obj = keyArrToObjrecur(xPathArr, value, index - 1, newObj);
     return obj;
 }
-
-// csv-parse
-fs.readFile('./test1.csv', function (err, fileData) {
-    parse(fileData, {columns: true, trim: true}, function(err, rows) {
-        // Your CSV data is in an array of arrys passed to this callback as rows.
-        var obj = makeObj(err, rows);
-        makeXml(obj);
-    })
-})
-function makeObj(err, rows) {
+function makeObjStep1(rows) {
+    /* return an array of objects like  
+    {"library":{"folder[attribute::folder-id=\"blog\"]":{"display-name[attribute::xml:lang=\"en-AE\"]":"BLOG"}}} */
+    //console.log('makeObjStep1');
     let keyValObjs = []
     for (let i = 0; i < rows.length; i++) {
         const element = rows[i];
@@ -41,15 +35,19 @@ function makeObj(err, rows) {
         let value = element['TO TRANSLATE']; // values column name
         let keyArr = keyStr2Arr(xPath);
         let keyObj = keyArrToObjrecur(keyArr, value);
-        //console.log('row');
-        //console.log(JSON.stringify(keyObj));
         keyValObjs.push(keyObj);
     }
-
+    return keyValObjs;
+}
+function makeObjStep2(keyValObjs) {
+    console.log('makeObjStep2');
+    console.log(JSON.stringify(keyValObjs[0]));
     console.log(JSON.stringify(keyValObjs));
-    // transform keyValObjs to the adequat result obj here
-    
-    let result = {
+}
+function makeObjStep3(obj) {
+    /* transform obj to the result obj for obj2xml compatibility */
+    console.log('makeObjStep3');
+    /*let result = {
         "tagUnique": "tagUniqueVal",
         "multipleTagA": [
             {
@@ -100,11 +98,30 @@ function makeObj(err, rows) {
         ],
         "email": "john@smith.com"
     };
-    return result;
+    return result;*/
 }
-
 function makeXml(obj) {
     // https://www.npmjs.com/package/js2xmlparser
     var js2xmlparser = require("js2xmlparser");
     console.log(js2xmlparser.parse("library", obj));
 }
+
+
+///////////////////////////////////// App params
+let csvPath = './test1.csv';
+/////////////////////////////////////
+
+fs.readFile(csvPath, function (err, fileData) { // csv-parse
+    parse(fileData, {columns: true, trim: true}, function(err, rows) {
+        // Your CSV data is in an array of arrys passed to this callback as rows.
+        if (err) {
+            console.log('err: ', err);
+        }
+
+        var obj = makeObjStep1(rows);
+        obj = makeObjStep2(obj);
+        obj = makeObjStep3(obj);
+
+        makeXml(obj);
+    })
+})
